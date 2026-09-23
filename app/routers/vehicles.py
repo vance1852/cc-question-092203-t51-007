@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
 from ..database import get_db
-from ..models import Vehicle
+from ..models import Battery, Vehicle
 from ..schemas import VehicleCreate, VehicleOut, VehicleUpdate
 
 router = APIRouter(prefix="/api/vehicles", tags=["车辆"], dependencies=[Depends(get_current_user)])
@@ -55,6 +55,10 @@ def delete_vehicle(vehicle_id: int, db: Session = Depends(get_db)):
     vehicle = db.get(Vehicle, vehicle_id)
     if not vehicle:
         raise HTTPException(status_code=404, detail="车辆不存在")
+    # 车上仍装有电池资产时禁止删除，避免电池台账中的车辆引用悬空
+    on_board = db.query(Battery).filter(Battery.vehicle_id == vehicle_id).count()
+    if on_board:
+        raise HTTPException(status_code=409, detail="该车辆仍装有电池，请先换电卸下后再删除")
     db.delete(vehicle)
     db.commit()
     return None

@@ -52,12 +52,10 @@ def test_seed_stations_present_with_chinese():
     assert any("换电站" in s["name"] for s in stations)
 
 
-def test_station_crud_and_validation():
+def test_station_crud_and_ignored_battery_ready():
     headers = _auth_headers()
-    # 非法数据：满电电池数 > 仓位总数
-    bad = client.post("/api/stations", json={"name": "测试站", "slot_total": 2, "battery_ready": 5}, headers=headers)
-    assert bad.status_code == 422
-
+    # 新契约：battery_ready 是只读汇总，建/改时传入会被忽略并告警，
+    # 绝不会出现汇总数大于实际资产数的分叉
     created = client.post(
         "/api/stations",
         json={"name": "西站测试换电站", "address": "测试路 1 号", "slot_total": 10, "battery_ready": 6},
@@ -65,7 +63,8 @@ def test_station_crud_and_validation():
     )
     assert created.status_code == 201, created.text
     sid = created.json()["id"]
-    assert created.json()["name"] == "西站测试换电站"
+    assert created.json()["battery_ready"] == 0
+    assert "只读汇总" in created.json()["warning"]
 
     updated = client.put(f"/api/stations/{sid}", json={"status": "maintenance"}, headers=headers)
     assert updated.status_code == 200
