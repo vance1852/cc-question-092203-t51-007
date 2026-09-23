@@ -52,24 +52,26 @@ def test_seed_stations_present_with_chinese():
     assert any("换电站" in s["name"] for s in stations)
 
 
-def test_station_crud_and_validation():
+def test_station_crud_and_deprecated_ready_field():
     headers = _auth_headers()
-    # 非法数据：满电电池数 > 仓位总数
-    bad = client.post("/api/stations", json={"name": "测试站", "slot_total": 2, "battery_ready": 5}, headers=headers)
-    assert bad.status_code == 422
-
+    # 兼容策略：旧客户端上送 battery_ready 不再报错，但该字段已废弃，
+    # 库存只能由电池资产派生，新建站点的可换数必然为 0。
     created = client.post(
         "/api/stations",
-        json={"name": "西站测试换电站", "address": "测试路 1 号", "slot_total": 10, "battery_ready": 6},
+        json={"name": "西站测试换电站", "address": "测试路 1 号", "slot_total": 10, "battery_ready": 5},
         headers=headers,
     )
     assert created.status_code == 201, created.text
     sid = created.json()["id"]
     assert created.json()["name"] == "西站测试换电站"
+    assert created.json()["battery_ready"] == 0
+    assert created.json()["battery_total"] == 0
 
-    updated = client.put(f"/api/stations/{sid}", json={"status": "maintenance"}, headers=headers)
+    updated = client.put(f"/api/stations/{sid}", json={"status": "maintenance", "battery_ready": 9}, headers=headers)
     assert updated.status_code == 200
     assert updated.json()["status"] == "maintenance"
+    # 直接上送的库存数被忽略，不会与明细分叉
+    assert updated.json()["battery_ready"] == 0
 
     deleted = client.delete(f"/api/stations/{sid}", headers=headers)
     assert deleted.status_code == 204

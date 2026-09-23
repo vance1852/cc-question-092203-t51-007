@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from .routers import auth, dashboard, stations, swaps, vehicles
+from .routers import auth, batteries, dashboard, stations, swaps, vehicles
 from .seed import init_db
 
 
@@ -19,8 +19,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="换电站运营管理平台 API",
-    description="新能源物流车换电站后台管理（纯后端）。",
-    version="1.0.0",
+    description="新能源物流车换电站后台管理（纯后端）：站点、车辆、可追溯电池资产与换电事务。",
+    version="2.0.0",
     lifespan=lifespan,
 )
 
@@ -33,5 +33,6 @@ def health():
 app.include_router(auth.router)
 app.include_router(stations.router)
 app.include_router(vehicles.router)
+app.include_router(batteries.router)
 app.include_router(swaps.router)
 app.include_router(dashboard.router)
